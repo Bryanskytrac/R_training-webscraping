@@ -1,4 +1,4 @@
-#webscraping test v0.6
+#webscraping test v0.7
 
 ####Library loading####
 # Load the XML library
@@ -101,10 +101,11 @@ for (k in 1:total_num_import_files)
 {
 
   # # Take a 30 second break every 10 URLs ????
-  if((k%/%10) == 0){
-    "start break"
+  if((k%%10) == 0){
+    print("start break")
+    print(k)
     Sys.sleep(10) # Time delay in seconds for querying website between URLs, if needed
-    "done break"
+    print("done break")
   }
 
   
