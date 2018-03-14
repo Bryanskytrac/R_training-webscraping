@@ -1,4 +1,4 @@
-#webscraping test v0.4
+#webscraping test v0.5
 
 ####Library loading####
 # Load the XML library
@@ -10,7 +10,8 @@ library(utils)
 library(dplyr)
 
 # Set the working directory
-setwd("C:/Temp/R_Training-Webscraping")
+working_dir <- "C:/Temp/R_Training-Webscraping"
+setwd(working_dir)
 
 ####Sitemap URL and parse####
 # Get the list of URLs from the sitemap 
@@ -34,20 +35,13 @@ class(sitemap_html)
 #OLD total_num_import_files <- length(sitemap_xml)
 total_num_urls <- length(getNodeSet(sitemap_html, "//url/loc"))
 
-#total_num_urls <- 30
-
 df_URLs <- data.frame(xpathSApply(sitemap_html, "//url/loc", xmlValue), stringsAsFactors = FALSE)
 
 names(df_URLs) <- c("URL_Column")
 
 #### For the initial testing of this script, I took a random sample of rows (URLs) 
-df_URLs <- dplyr::sample_n(df_URLs,200)
+# df_URLs <- dplyr::sample_n(df_URLs,200)
 
-
-# df3 <- dplyr::tbl_df(df2) # Prettify the dataframe table for printing
-
-# How to remove a variable 
-# rm(<variable_name_here>)
 
 # Filter down to the needed rows
 df_URLs_f <- dplyr::filter(df_URLs,grepl("dress-shirt",df_URLs$URL_Column))
@@ -93,19 +87,21 @@ my_counter <- 1
 
 for (k in 1:total_num_import_files)
 {
+
+  # # Take a 10 second break every 30 URLs ????
+  if(k %/% 10 == 0){
+    "start break"
+    Sys.sleep(30) # Time delay in seconds for querying website between URLs, if needed
+    "done break"
+  }
+
+  
   my_counter <- k
 
   #   filename_current <- import_filenames[my_counter] 
   # setting the URL to pull from
   url_current <- df_URLs_f[my_counter,1]
-
-#   read_path <- file.path(working_dir, filename_current)
-#   
-#   # Use the xmlParse-function to parse the xml file # Validate = TRUE means that the XML file will be compared to the DTD file (in the same directory?)
-#   xml_current <- xmlParse(read_path, validate = TRUE)
-#   # the xml file is now saved as an object & this function shows the object class properties
-#   class(xml_current)
-
+  
   # this importing has the object imported as the html object class
   import_html <- htmlParse(url_current)
   
@@ -114,17 +110,30 @@ for (k in 1:total_num_import_files)
 #   df[k,num_columns] <- "N" # Set default stating that no fields were truncated
 #   df2[k,1] <- filename_current
 #   df2[k,num_columns] <- "N"
-  
+
   df[k,"URL"] <- url_current # add URL to first column of export dataframe
   df2[k,"URL"] <- url_current # add URL to first column of double-check dataframe
+  
+  # Checking for the correct size
+  num_correct_size_nodes <- length(getNodeSet(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']"))
+  
+  if (num_correct_size_nodes == 1){  
+    df[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value"), collapse = " ")
+  } 
+
   # get the price attribute value directly
   # OLD df[k,"prices_list"] <- paste(xpathSApply(import_html, "//div/span[@data-gtm='price']", xmlValue), collapse = "")
   # OLD df[k,"prices_list"] <- gsub("[\r\n\t]", " ", df[k,"prices_list"])
   # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlGetAttr, "value")
   # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlValue)
-
-  df[k,"prices_list"] <- xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content")[1]
-  df2[k,"prices_list"] <- paste(xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content"), collapse = " ")
+  
+  # test for multiple prices
+  num_price_nodes <- length(getNodeSet(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']"))
+  if(num_price_nodes == 1){
+    df[k,"prices_list"] <- xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content")
+  } else if (num_price_nodes > 1){
+    df[k,"prices_list"] <- paste0("Multiple ",paste(xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content"), collapse = ", "))
+  }
   # checking for a text promotion
   df[k,"promo_text"] <- paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue)[1], collapse = "")
   # gsub will replace any of these characters with a space within this string variable
@@ -134,14 +143,19 @@ for (k in 1:total_num_import_files)
   # gsub will replace any of these characters with a space within this string variable
   df2[k,"promo_text"] <- gsub("[\r\n\t]", "", df[k,"promo_text"])
   
-  # Checking for the correct size
-  df[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value"), collapse = " ")
-  # List all of the sizes available in df2
-  df2[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value"), collapse = ",")
   # List all of the available colors  
   # df[k,"colors_list"] <- paste(xpathSApply(import_html, "//div[@class='spot color-box ']//option", xmlGetAttr, "value"), collapse = ",")
   df[k,"colors_list"] <- paste(xpathSApply(import_html, "//img[@class='product-color']", xmlGetAttr, "title"), collapse = ", ")
+  df2[k,"colors_list"] <- paste(xpathSApply(import_html, "//img[@class='product-color']", xmlGetAttr, "title"), collapse = ", ")      
   
+  # List all of the sizes available in df2
+  df2[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value"), collapse = ",")    
+  # List all of the prices in df2
+  df2[k,"prices_list"] <- paste(xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content"), collapse = " ")
+
+  
+    
+    
 #   ## BEGIN XPATH NESTED LOOP - Go through each of the tags (columns) in the current XML file
 #   for (m in 1:num_tags)
 #   {
@@ -175,41 +189,6 @@ for (k in 1:total_num_import_files)
 
 
 
-###### This is a single URL pass
-
-# setting the URL to pull from
-import_url <- file.path("http://www.josbank.com/signature-wrinkle-free-spread-collar-tailored-fit-dress-shirt-clearance-5JD7C")
-import_url <- "http://www.josbank.com/signature-wrinkle-free-spread-collar-tailored-fit-dress-shirt-clearance-5JD7C"
-
-
-# this importing has the object imported as the html object class
-import_html <- htmlParse(import_url)
-
-
-# get the price attribute value directly
-prices_list <- xpathSApply(import_html, "//span[@data-gtm='price']", xmlGetAttr, "value")
-
-# checking for a text promotion
-promo_text <- paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue), collapse = "")
-
-# gsub will replace any of these characters with a space within this string variable
-promo_text <- gsub("[\r\n\t]", "", promo_text)
-
-
-##############Checking for the correct size
-right_size <- xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value")
-
-# List all of the available colors
-colors_list <- xpathSApply(import_html, "//div[@class='spot color-box ']//option", xmlGetAttr, "value")
-
-# check for all sizes available 
-# xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value")
-
-# prices_list
-# promo_text
-# right_size
-# colors_list
-
 ############################### COPY-PASTE from XML parsing to export dataframe to CSV file
 
 ### Write dataframe to csv function
@@ -217,94 +196,7 @@ filename_new <- "export_complete.csv"
 write_path <- file.path(working_dir, filename_new)
 write.csv(df, file = write_path, row.names = FALSE)
 
-# filename_counts <- "export_tag_count.csv"
-# write_path_counts <- file.path(working_dir, filename_counts)
-# write.csv(df2, file = write_path_counts, row.names = FALSE)
-
-
-
-#################Everything Afterwards is unneccessary ########################
-
-getNodeSet(import_html, "//ul[@class='size-chart-linklist']")
-
-
-length(getNodeSet(import_html, "//ul[@class]"))
-xpathSApply(import_html, "//ul[@class]", xmlValue)
-
-xpathSApply(import_html, "//div[@class='spot size-box']", xmlGetAttr, "class")
-getNodeSet(import_html, "//div[@class='product-options']//div")[5]
-
-getNodeSet(import_html, "//div[@class='spot size-box ']//option")
-xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value")
-
-xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue)
-
-xpathSApply(import_html, "//p", xmlGetAttr, "data-gtm")
-getNodeSet(import_html, "//p[@data-gtm='promo']")
-
-#paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue), collapse = "")
-
-# gsub will replace any of these characters with a space within this string variable
-promo_text <- gsub("[\r\n\t]", "", promo_text)
-
-xpathSApply(import_html, "//input[@data-gtm='price']", xmlValue)
-getNodeSet(import_html, "//input[@data-gtm='price']")
-
-xpathSApply(import_html, "//input[@data-gtm='price']", xmlGetAttr, "value")
-
-
-
-# this importing has the object imported with the tree structure as part of the R object
-import_html_tree <- htmlTreeParse(import_url)
-
-
-xpathSApply(import_html, "//@ada-sizeAttrValueSelect_451207558", xmlValue)
-xpathSApply(import_html, "//@productPrice_451207558", xmlValue)
-paste(xpathSApply(import_html, "//@ada-sizeAttrValueSelect_451207558", xmlValue), collapse = "")
-# xmlValue(getNodeSet(import_html_tree, "//@productPrice_451207558"))
-
-summary(getNodeSet(import_html, "//@productPrice_451207558"))
-
-
-
-# shirt size attribute value? = ada-sizeAttrValueSelect_451207558
-# Price attribute? = productPrice_451207558
-
-# offerprice
-xpathSApply(import_html, "//span[@id='offerPrice']", xmlValue)
-
-# try to get the price attribute value directly
-xpathSApply(import_html, "//input[@data-gtm='price']", xmlValue)
-getNodeSet(import_html, "//input[@data-gtm='price']")
-
-xpathSApply(import_html, "//input[@data-gtm='price']", xmlGetAttr, "value")
-
-
-# product price subset of nodes
-
-xpathSApply(import_html, "//div[@class='product-price']", xmlValue)
-length(xpathSApply(import_html, "//div[@class='product-price']", xmlValue))
-# take each result at a time
-xpathSApply(import_html, "//div[@class='product-price']", xmlValue)[1]
-xpathSApply(import_html, "//div[@class='product-price']", xmlValue)[2]
-
-# using xmlValue function to parse the whole <div> tag about product-price
-paste(xpathSApply(import_html, "//div[@class='product-price']", xmlValue), collapse = "")
-
-product_price_str <- paste(xpathSApply(import_html, "//div[@class='product-price']", xmlValue), collapse = "")
-
-summary(product_price_str)
-
-paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue), collapse = "")
-
-gsub("[\r\n\t]", " ", product_price_str) #replace any of these characters with a space within this string variable
-
-
-# try using the node set to parse the data
-price_nodes <- getNodeSet(import_html, "//div[@class='product-price']")
-xmlSize(price_nodes)
-
-price_tree_test <- htmlTreeParse(price_nodes)
-xmlSize(price_tree_test)
-price_tree_test$children$html$body
+filename_error_checking <- "export_error_checking.csv"
+write_path_error_checking <- file.path(working_dir, filename_error_checking)
+write.csv(df2, file = write_path_error_checking, row.names = FALSE)
 
