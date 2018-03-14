@@ -1,4 +1,4 @@
-#webscraping test v0.5
+#webscraping test v0.6
 
 ####Library loading####
 # Load the XML library
@@ -44,7 +44,19 @@ names(df_URLs) <- c("URL_Column")
 
 
 # Filter down to the needed rows
+# Contains "dress-shirt" 
 df_URLs_f <- dplyr::filter(df_URLs,grepl("dress-shirt",df_URLs$URL_Column))
+# Does not contain "big-tall" Not "button-down-collar" Not "cutaway-collar" Not "short-sleeve" Not "big-and-tall" Not "shirts" 
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("big-tall",df_URLs_f$URL_Column))
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("button-down-collar",df_URLs_f$URL_Column))
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("cutaway-collar",df_URLs_f$URL_Column))
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("short-sleeve",df_URLs_f$URL_Column))
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("big-and-tall",df_URLs_f$URL_Column))
+df_URLs_f <- dplyr::filter(df_URLs_f,!grepl("shirts",df_URLs_f$URL_Column))
+
+# Should I filter on contains "clearance"?
+df_URLs_f <- dplyr::filter(df_URLs_f,grepl("clearance",df_URLs_f$URL_Column))
+
 
 total_num_import_files <- length(df_URLs_f[,1])
 
@@ -88,10 +100,10 @@ my_counter <- 1
 for (k in 1:total_num_import_files)
 {
 
-  # # Take a 10 second break every 30 URLs ????
-  if(k %/% 10 == 0){
+  # # Take a 30 second break every 10 URLs ????
+  if((k%/%10) == 0){
     "start break"
-    Sys.sleep(30) # Time delay in seconds for querying website between URLs, if needed
+    Sys.sleep(10) # Time delay in seconds for querying website between URLs, if needed
     "done break"
   }
 
@@ -195,6 +207,9 @@ for (k in 1:total_num_import_files)
 filename_new <- "export_complete.csv"
 write_path <- file.path(working_dir, filename_new)
 write.csv(df, file = write_path, row.names = FALSE)
+
+# export partial temp file writing command
+# write.csv(df, file = file.path(working_dir, "export_partial.csv"), row.names = FALSE)
 
 filename_error_checking <- "export_error_checking.csv"
 write_path_error_checking <- file.path(working_dir, filename_error_checking)
