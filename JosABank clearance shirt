@@ -1,4 +1,4 @@
-#webscraping test v0.3
+#webscraping test v0.4
 
 ####Library loading####
 # Load the XML library
@@ -54,8 +54,6 @@ df_URLs_f <- dplyr::filter(df_URLs,grepl("dress-shirt",df_URLs$URL_Column))
 
 total_num_import_files <- length(df_URLs_f[,1])
 
-# # This will tell me which file to import in the list, when it equals 1 then it will be the first one
-my_counter <- 1
  
 # # Create vector of imported xpath tag names from imported file list
 # import_tag_names_filepath <- file.path(working_dir, "import_tag_names_ETF.txt")
@@ -65,8 +63,7 @@ my_counter <- 1
 # import_tag_length <- length(import_tag_names) # file length with first blank row
 # import_tag_names <- import_tag_names[2:import_tag_length] # truncate/remove the first blank row for xpath tag names from the imported file
 # num_tags <- length(import_tag_names) # number of xpath tag names after the first blank row was removed
-# 
-
+ 
 # Create vector of column names 
 # import_col_names_filepath <- file.path(working_dir, "import_column_names_ETF.txt")
 # import_col_names <- readLines(import_col_names_filepath, n = -1L, ok = TRUE, warn = TRUE, encoding = "UTF-8", skipNul = TRUE)
@@ -88,6 +85,10 @@ df <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=
 # df2 <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), c(import_col_names))))
 df2 <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), export_col_names)))
 # 
+
+# This will tell me which file to import in the list, when it equals 1 then it will be the first one
+my_counter <- 1
+
 # ## BEGIN LOOP THROUGH FILENAME LIST - Each loop will import a single row from a single file
 
 for (k in 1:total_num_import_files)
@@ -97,6 +98,7 @@ for (k in 1:total_num_import_files)
   #   filename_current <- import_filenames[my_counter] 
   # setting the URL to pull from
   url_current <- df_URLs_f[my_counter,1]
+
 #   read_path <- file.path(working_dir, filename_current)
 #   
 #   # Use the xmlParse-function to parse the xml file # Validate = TRUE means that the XML file will be compared to the DTD file (in the same directory?)
@@ -116,26 +118,30 @@ for (k in 1:total_num_import_files)
   df[k,"URL"] <- url_current # add URL to first column of export dataframe
   df2[k,"URL"] <- url_current # add URL to first column of double-check dataframe
   # get the price attribute value directly
-  df[k,"prices_list"] <- xpathSApply(import_html, "//input[@data-gtm='price']", xmlGetAttr, "value")
-  &&&&&&&&&&& UPDATE THIS TO MATCH ABOVE STATEMENT 
-  xpathSApply(import_html, "//div/span[@data-gtm='price']", xmlValue)
-  
+  # OLD df[k,"prices_list"] <- paste(xpathSApply(import_html, "//div/span[@data-gtm='price']", xmlValue), collapse = "")
+  # OLD df[k,"prices_list"] <- gsub("[\r\n\t]", " ", df[k,"prices_list"])
+  # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlGetAttr, "value")
+  # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlValue)
+
+  df[k,"prices_list"] <- xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content")[1]
+  df2[k,"prices_list"] <- paste(xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content"), collapse = " ")
   # checking for a text promotion
-  df[k,"promo_text"] <- paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue), collapse = "")
+  df[k,"promo_text"] <- paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue)[1], collapse = "")
   # gsub will replace any of these characters with a space within this string variable
   df[k,"promo_text"] <- gsub("[\r\n\t]", "", df[k,"promo_text"])
+  
+  df2[k,"promo_text"] <- paste(xpathSApply(import_html, "//p[@data-gtm='promo']", xmlValue), collapse = " ")
+  # gsub will replace any of these characters with a space within this string variable
+  df2[k,"promo_text"] <- gsub("[\r\n\t]", "", df[k,"promo_text"])
+  
   # Checking for the correct size
-  df[k,"right_size"] <- xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value")
+  df[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value"), collapse = " ")
+  # List all of the sizes available in df2
+  df2[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value"), collapse = ",")
   # List all of the available colors  
-  df[k,"colors_list"] <- paste(xpathSApply(import_html, "//div[@class='spot color-box ']//option", xmlGetAttr, "value"), collapse = " ")
-
-
-# check for all sizes available 
-# xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value")
-
-
-
-
+  # df[k,"colors_list"] <- paste(xpathSApply(import_html, "//div[@class='spot color-box ']//option", xmlGetAttr, "value"), collapse = ",")
+  df[k,"colors_list"] <- paste(xpathSApply(import_html, "//img[@class='product-color']", xmlGetAttr, "title"), collapse = ", ")
+  
 #   ## BEGIN XPATH NESTED LOOP - Go through each of the tags (columns) in the current XML file
 #   for (m in 1:num_tags)
 #   {
