@@ -1,4 +1,4 @@
-#webscraping test v0.7
+#webscraping test v0.8
 
 ####Library loading####
 # Load the XML library
@@ -61,34 +61,16 @@ df_URLs_f <- dplyr::filter(df_URLs_f,grepl("clearance",df_URLs_f$URL_Column))
 total_num_import_files <- length(df_URLs_f[,1])
 
  
-# # Create vector of imported xpath tag names from imported file list
-# import_tag_names_filepath <- file.path(working_dir, "import_tag_names_ETF.txt")
-# import_tag_names <- readLines(import_tag_names_filepath, n = -1L, ok = TRUE, warn = TRUE, encoding = "UTF-8", skipNul = TRUE)
-# 
-# # Create vector of of xpath tag names from imported file list
-# import_tag_length <- length(import_tag_names) # file length with first blank row
-# import_tag_names <- import_tag_names[2:import_tag_length] # truncate/remove the first blank row for xpath tag names from the imported file
-# num_tags <- length(import_tag_names) # number of xpath tag names after the first blank row was removed
- 
 # Create vector of column names 
-# import_col_names_filepath <- file.path(working_dir, "import_column_names_ETF.txt")
-# import_col_names <- readLines(import_col_names_filepath, n = -1L, ok = TRUE, warn = TRUE, encoding = "UTF-8", skipNul = TRUE)
-
 export_col_names <- c("URL", "prices_list", "promo_text", "right_size", "colors_list")
- 
-# # remove first "empty" row from list of columns
-# import_col_length <- length(import_col_names) # file length with first blank row
-# import_col_names <- import_col_names[2:import_col_length] # truncate/remove the first blank row for column names from the imported file
 
 num_columns <- length(export_col_names)
 
-## Initialize export dataframe
+## Initialize export dataframes
 # Number of rows = total_num_import_files # Number of columns = num_columns
-# df <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), c(import_col_names))), stringsAsFactors=FALSE)
 df <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), export_col_names)), stringsAsFactors=FALSE)
 
 # # df2 is for recording the number of tags found for each tag search
-# df2 <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), c(import_col_names))))
 df2 <- data.frame(matrix(vector(), total_num_import_files, num_columns, dimnames=list(c(), export_col_names)))
 # 
 
@@ -119,11 +101,6 @@ for (k in 1:total_num_import_files)
   import_html <- htmlParse(url_current)
   
   # Store static values for current row/filename
-#   df[k,1] <- filename_current # add Filename to first column of dataframe
-#   df[k,num_columns] <- "N" # Set default stating that no fields were truncated
-#   df2[k,1] <- filename_current
-#   df2[k,num_columns] <- "N"
-
   df[k,"URL"] <- url_current # add URL to first column of export dataframe
   df2[k,"URL"] <- url_current # add URL to first column of double-check dataframe
   
@@ -134,13 +111,7 @@ for (k in 1:total_num_import_files)
     df[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option[@value='16 1/2x34']", xmlGetAttr, "value"), collapse = " ")
   } 
 
-  # get the price attribute value directly
-  # OLD df[k,"prices_list"] <- paste(xpathSApply(import_html, "//div/span[@data-gtm='price']", xmlValue), collapse = "")
-  # OLD df[k,"prices_list"] <- gsub("[\r\n\t]", " ", df[k,"prices_list"])
-  # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlGetAttr, "value")
-  # OLD xpathSApply(import_html, "//div[@class='product-price']//span[@data-gtm='price']", xmlValue)
-  
-  # test for multiple prices
+    # test for multiple prices
   num_price_nodes <- length(getNodeSet(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']"))
   if(num_price_nodes == 1){
     df[k,"prices_list"] <- xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content")
@@ -165,39 +136,7 @@ for (k in 1:total_num_import_files)
   df2[k,"right_size"] <- paste(xpathSApply(import_html, "//div[@class='spot size-box ']//option", xmlGetAttr, "value"), collapse = ",")    
   # List all of the prices in df2
   df2[k,"prices_list"] <- paste(xpathSApply(import_html, "//div[@itemtype='http://schema.org/Offer']/meta[@itemprop='price']", xmlGetAttr, "content"), collapse = " ")
-
-  
     
-    
-#   ## BEGIN XPATH NESTED LOOP - Go through each of the tags (columns) in the current XML file
-#   for (m in 1:num_tags)
-#   {
-#     
-#     ############# SANDBOX - Do we need a space between values & should we only take the first value?
-#     
-#     num_nodes <- length(xpathSApply(xml_current, import_tag_names[m], xmlValue))
-#     df2[k,m+1] <- num_nodes
-#     
-#     if (num_nodes == 1){
-#       # Save value straight into the dataframe 
-#       df[k,m+1] <- paste(xpathSApply(xml_current, import_tag_names[m], xmlValue), collapse = "");
-#       
-#     } else { if (num_nodes > 1) {
-#       df[k,m+1] <- paste(xpathSApply(xml_current, import_tag_names[m], xmlValue)[1], collapse = "");
-#       df[k,num_columns] <- "Y" # Record YES that a field was truncated
-#       
-#       df2[k,num_columns] <- "Y" # Record YES that a field was truncated
-#       
-#     }
-#     }
-#     
-#     
-#     ###############
-#     
-#     
-#   } # END OF XPATH NESTED LOOP
-
-
 } # END OF (ROW) LOOP
 
 
